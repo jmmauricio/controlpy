@@ -362,3 +362,100 @@ def system_norm_Hinf(Acl, Bdisturbance, C, D = None, lowerBound = 0, upperBound 
     
     return upperBound
     
+
+
+def ss_analysis(A):
+    '''     
+    Definition:ss_analysis(A)
+    
+    Type: Function of small_signal module
+
+    ----
+    
+    Computes right and left eigenvalues and eigenvectors and computes participations factor
+    matrix
+    
+    Parameters
+    ----------
+    A : System matrix array_like
+    
+    Returns
+    -------
+    w :       (M,) ndarray 
+              eigenvalues.
+    v_right : (M, M) ndarray
+              The normalized (unit "length") eigenvectors, such that the
+              column ``v_right[:,i]`` is the right eigenvector corresponding to the
+              eigenvalue ``w_right[i]``.
+    v_left :  (M, M) ndarray
+              The normalized (unit "length") eigenvectors, such that the
+              column ``v_left[:,i]`` is the right eigenvector corresponding to the
+              eigenvalue ``w_left[i]``.
+    
+    pf:       (M, M) ndarray
+              Participation factors matrix computed as PSS/E. 
+    
+    Example
+    -------
+    >>> import numpy as np 
+    >>> from small_signal import ss_analysis  
+    
+    Linelized system from Kundur's book example 13.2 
+    
+    >>> A=np.array(
+               [[  -1.489,   -0.179,   -0.092,   -0.94 ,   -0.   ,    0.231,    2.5  ],
+                [  -0.064,   -2.929,   -0.056,    1.529,    0.   ,    0.079,    0.   ],
+                [  29.55 ,    0.   ,  -36.64 ,    0.   ,    0.   ,   -5.983,    0.   ],
+                [   0.   ,   12.66 ,   -0.   ,  -22.79 ,    0.   ,    3.191,    0.   ],
+                [  -0.091,    0.01 ,   -0.08 ,    0.054,   -0.127,   -0.158,    0.   ],
+                [   0.   ,    0.   ,    0.   ,    0.   ,  377.   ,    0.   ,    0.   ],
+                [   0.   ,    0.   ,    0.   ,    0.   ,    0.   ,    0.   ,   -1.   ]]
+                )
+    >>> w,v_right,v_left,pf= ss_analysis(A)
+
+    '''
+
+    n = A.shape[0]
+    
+    w_right,v_right = np.linalg.eig(A)
+    w=w_right
+    
+    v_left = np.linalg.inv(v_right)
+    
+    pf = np.zeros((n,n))
+    
+    for j in range(n):
+    
+        
+        norm_den = sum(abs(v_right[:,j]*v_left[j,:]))
+        
+        for i in range(n):
+            
+            pf[i,j] = abs((v_right[i,j])*(v_left[j,i]))/norm_den
+
+            
+    return w,v_right,v_left,pf
+   
+def compute_damp(A):
+
+    n = A.shape[0]
+    
+    w,v = np.linalg.eig(A)
+    omega_0 = abs(w)
+    damp = -w.real/omega_0
+    freq = np.sqrt(1-damp**2)*omega_0
+    freq_hz = freq/(2.0*np.pi)
+    
+    new_line  = '\n'
+    str_out =  '='*8 + ' ' + '='*9 + ' ' + '='*9 + ' ' + '='*9 + ' ' + '='*9 + '\n'
+    str_out += '{:8s} {:9s} {:9s} {:9s} {:9s} '.format('eig #','real','imag','damp','freq' ) + '\n'  
+    str_out += '='*8 + ' ' + '='*9 + ' ' + '='*9 + ' ' + '='*9 + ' ' + '='*9 + '\n'  
+    for it in range(n):
+        if damp[it]<0.2:
+            
+            str_out +=  '  {:6s}   {:5.2f}     {:5.2f}     {:5.2f}     {:5.2f}   '.format('**'+str(it+1)+'**',w[it].real, w[it].imag,damp[it], freq_hz[it]) + '\n'  
+        else:
+            str_out +=  '  {:4d}     {:5.2f}     {:5.2f}      {:5.2f}    {:5.2f} '.format(it+1,w[it].real, w[it].imag,damp[it], freq_hz[it]) + '\n'              
+            
+    str_out += '='*8 + ' ' + '='*9 + ' ' + '='*9 + ' ' + '='*9 + ' ' + '='*9 + '\n'        
+    return w,damp, freq, str_out
